@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Magic Square — Chalkboard Puzzle</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#152c1d;
+    --bg-panel:#1b3624;
+    --wood:#6b4630;
+    --wood-dark:#3d2818;
+    --wood-light:#8a6248;
+    --chalk:#f3efe2;
+    --chalk-dim:rgba(243,239,226,0.58);
+    --chalk-faint:rgba(243,239,226,0.16);
+    --yellow:#e8c468;
+    --mint:#8fd9a8;
+    --coral:#e2735f;
+    --font-display:'Kalam', cursive;
+    --font-mono:'Space Mono', monospace;
+  }
+
+  *{box-sizing:border-box;}
+
+  body{
+    margin:0;
+    min-height:100vh;
+    background:
+      radial-gradient(ellipse at 50% -10%, #1e3d28 0%, var(--bg) 55%);
+    color:var(--chalk);
+    font-family:var(--font-mono);
+    display:flex;
+    justify-content:center;
+    padding:32px 16px 60px;
+  }
+
+  .page{
+    width:100%;
+    max-width:720px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:22px;
+  }
+
+  .hero{
+    text-align:center;
+  }
+  .hero h1{
+    font-family:var(--font-display);
+    font-weight:700;
+    font-size:clamp(2.4rem, 7vw, 3.4rem);
+    margin:0 0 4px;
+    color:var(--chalk);
+    text-shadow: 0 0 1px rgba(243,239,226,0.5), 2px 2px 0 rgba(0,0,0,0.15);
+    position:relative;
+    display:inline-block;
+  }
+  .hero h1::after{
+    content:'';
+    position:absolute;
+    left:6%;
+    right:6%;
+    bottom:-6px;
+    height:6px;
+    background:var(--yellow);
+    opacity:0.55;
+    border-radius:50% 50% 40% 60% / 60% 40% 60% 40%;
+    transform:rotate(-1deg);
+  }
+  .hero p{
+    margin:10px 0 0;
+    color:var(--chalk-dim);
+    font-size:0.95rem;
+    max-width:46ch;
+    margin-inline:auto;
+    line-height:1.5;
+  }
+
+  .controls{
+    display:flex;
+    flex-wrap:wrap;
+    gap:12px;
+    justify-content:center;
+    align-items:flex-end;
+  }
+  .controls label{
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+    font-size:0.72rem;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    color:var(--chalk-dim);
+  }
+  select{
+    font-family:var(--font-mono);
+    font-size:0.9rem;
+    background:var(--bg-panel);
+    color:var(--chalk);
+    border:1.5px dashed var(--chalk-faint);
+    border-radius:6px;
+    padding:8px 10px;
+  }
+  select:focus-visible{outline:2px solid var(--yellow); outline-offset:2px;}
+
+  .btn{
+    font-family:var(--font-display);
+    font-size:1.05rem;
+    border-radius:8px;
+    padding:9px 18px;
+    cursor:pointer;
+    border:2px solid transparent;
+    transition:transform 0.12s ease, filter 0.12s ease;
+  }
+  .btn:active{transform:translateY(1px);}
+  .btn:focus-visible{outline:2px solid var(--yellow); outline-offset:3px;}
+  .btn-primary{
+    background:var(--yellow);
+    color:#2b2107;
+    border-color:#c7a24e;
+  }
+  .btn-primary:hover{filter:brightness(1.08);}
+  .btn-ghost{
+    background:transparent;
+    color:var(--chalk);
+    border:1.5px dashed var(--chalk-faint);
+  }
+  .btn-ghost:hover{border-color:var(--chalk-dim);}
+  .btn:disabled{opacity:0.4; cursor:not-allowed;}
+
+  .stats{
+    display:flex;
+    gap:22px;
+    flex-wrap:wrap;
+    justify-content:center;
+  }
+  .stat{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:2px;
+  }
+  .stat-label{
+    font-size:0.66rem;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    color:var(--chalk-dim);
+  }
+  .stat-value{
+    font-family:var(--font-display);
+    font-size:1.5rem;
+    color:var(--yellow);
+  }
+
+  .diag-readout{
+    display:flex;
+    gap:24px;
+    font-size:0.85rem;
+    color:var(--chalk-dim);
+  }
+  .diag-readout span.badge{
+    font-family:var(--font-mono);
+    font-weight:700;
+    padding:2px 10px;
+    border-radius:5px;
+    border:1.5px dashed var(--chalk-faint);
+    color:var(--chalk);
+  }
+  .diag-readout .badge.good{color:#1c3319; background:var(--mint); border-color:var(--mint);}
+  .diag-readout .badge.bad{color:#3a1410; background:var(--coral); border-color:var(--coral);}
+
+  .board-wrap{
+    position:relative;
+    padding:22px;
+    border-radius:18px;
+    background:
+      linear-gradient(var(--wood), var(--wood-dark));
+    box-shadow:
+      0 10px 0 var(--wood-dark),
+      0 18px 30px rgba(0,0,0,0.4),
+      inset 0 0 0 3px var(--wood-light);
+  }
+
+  .board{
+    display:grid;
+    gap:6px;
+    background:
+      repeating-linear-gradient(0deg, transparent 0 23px, rgba(255,255,255,0.02) 23px 24px),
+      var(--bg-panel);
+    padding:10px;
+    border-radius:8px;
+    transition:box-shadow 0.4s ease;
+  }
+  .board.solved{
+    animation:solvedGlow 1.6s ease-out 1;
+  }
+  @keyframes solvedGlow{
+    0%{box-shadow:0 0 0 rgba(232,196,104,0);}
+    40%{box-shadow:0 0 46px rgba(232,196,104,0.65);}
+    100%{box-shadow:0 0 0 rgba(232,196,104,0);}
+  }
+
+  .cell{
+    width:var(--cell);
+    height:var(--cell);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-family:var(--font-mono);
+    font-weight:700;
+    border-radius:7px;
+    border:2px dashed var(--chalk-faint);
+    font-size:clamp(0.85rem, 2.6vw, 1.15rem);
+  }
+  .cell-given{
+    color:var(--chalk);
+    background:rgba(243,239,226,0.04);
+  }
+  .cell-input{
+    color:var(--yellow);
+    background:rgba(243,239,226,0.06);
+    text-align:center;
+    caret-color:var(--yellow);
+  }
+  .cell-input:focus-visible{
+    outline:2px solid var(--yellow);
+    outline-offset:2px;
+    border-color:var(--yellow);
+  }
+  .cell-input.correct{
+    color:#1c3319;
+    background:var(--mint);
+    border-color:var(--mint);
+  }
+  .cell-input.incorrect{
+    background:var(--coral);
+    color:#3a1410;
+    border-color:var(--coral);
+    animation:shake 0.35s ease;
+  }
+  .cell-input.hinted{
+    border-color:var(--yellow);
+    box-shadow:inset 0 0 0 2px var(--yellow);
+  }
+  @keyframes shake{
+    0%,100%{transform:translateX(0);}
+    25%{transform:translateX(-3px);}
+    75%{transform:translateX(3px);}
+  }
+
+  .sum-cell{
+    color:var(--chalk-dim);
+    background:transparent;
+    border-style:solid;
+    border-color:var(--chalk-faint);
+    font-size:clamp(0.75rem, 2.2vw, 0.95rem);
+  }
+  .sum-cell.good{color:#1c3319; background:var(--mint); border-color:var(--mint);}
+  .sum-cell.bad{color:#3a1410; background:var(--coral); border-color:var(--coral);}
+  .sum-cell.partial{color:var(--yellow); border-color:rgba(232,196,104,0.4);}
+
+  .corner-cell{
+    border:none;
+    color:var(--chalk-faint);
+    font-family:var(--font-display);
+    font-size:1.3rem;
+  }
+
+  .chalk-dot{
+    position:absolute;
+    width:6px;height:6px;
+    border-radius:50%;
+    pointer-events:none;
+    animation:chalkFly 0.85s ease-out forwards;
+  }
+  @keyframes chalkFly{
+    to{ transform:translate(var(--dx), var(--dy)) scale(0.2); opacity:0; }
+  }
+
+  .legend{
+    font-size:0.72rem;
+    color:var(--chalk-dim);
+    text-align:center;
+    max-width:42ch;
+    line-height:1.5;
+  }
+
+  .actions{
+    display:flex;
+    gap:12px;
+  }
+
+  .message{
+    min-height:1.4em;
+    font-family:var(--font-display);
+    font-size:1.1rem;
+    color:var(--chalk-dim);
+    text-align:center;
+  }
+  .message.success{color:var(--mint);}
+  .message.hint{color:var(--coral);}
+
+  footer.footnote{
+    font-size:0.7rem;
+    color:var(--chalk-faint);
+    text-align:center;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .board.solved{animation:none;}
+    .cell-input.incorrect{animation:none;}
+    .chalk-dot{display:none;}
+  }
+
+  @media (max-width:420px){
+    .board-wrap{padding:14px;}
+    .stats{gap:14px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+  <div class="hero">
+    <h1>Magic Square</h1>
+    <p>Fill the blank chalk squares so every row, column, and both diagonals add up to the same total. A fresh puzzle every time.</p>
+  </div>
+
+  <div class="controls" role="group" aria-label="Puzzle settings">
+    <label>Size
+      <select id="sizeSelect" aria-label="Grid size">
+        <option value="3">3 × 3</option>
+        <option value="5">5 × 5</option>
+      </select>
+    </label>
+    <label>Difficulty
+      <select id="diffSelect" aria-label="Difficulty">
+        <option value="single">Single Blank</option>
+        <option value="easy">Easy</option>
+        <option value="medium" selected>Medium</option>
+        <option value="hard">Hard</option>
+      </select>
+    </label>
+    <button id="newBtn" class="btn btn-ghost" type="button">New Puzzle</button>
+  </div>
+
+  <div class="stats" aria-live="polite">
+    <div class="stat"><span class="stat-label">Target sum</span><span class="stat-value" id="targetVal">—</span></div>
+    <div class="stat"><span class="stat-label">Time</span><span class="stat-value" id="timerVal">00:00</span></div>
+    <div class="stat"><span class="stat-label">Hints left</span><span class="stat-value" id="hintsVal">3</span></div>
+  </div>
+
+  <div class="diag-readout">
+    <span>↘ Diagonal <span id="diagTL" class="badge">–</span></span>
+    <span>↙ Diagonal <span id="diagTR" class="badge">–</span></span>
+  </div>
+
+  <div class="board-wrap" id="boardWrap">
+    <div class="board" id="board"></div>
+  </div>
+
+  <p class="legend">Row and column totals along the edge glow mint when they match the target, coral when they miss, and stay gold while still in progress.</p>
+
+  <div class="actions">
+    <button id="checkBtn" class="btn btn-primary" type="button">Check Answers</button>
+    <button id="hintBtn" class="btn btn-ghost" type="button">Hint</button>
+  </div>
+
+  <p class="message" id="message" role="status" aria-live="polite"></p>
+
+  <footer class="footnote">Every number in a puzzle is used exactly once · rows, columns and diagonals always share the magic constant</footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  const sizeSelect = document.getElementById('sizeSelect');
+  const diffSelect = document.getElementById('diffSelect');
+  const newBtn = document.getElementById('newBtn');
+  const checkBtn = document.getElementById('checkBtn');
+  const hintBtn = document.getElementById('hintBtn');
+  const board = document.getElementById('board');
+  const boardWrap = document.getElementById('boardWrap');
+  const targetVal = document.getElementById('targetVal');
+  const timerVal = document.getElementById('timerVal');
+  const hintsVal = document.getElementById('hintsVal');
+  const message = document.getElementById('message');
+  const diagTL = document.getElementById('diagTL');
+  const diagTR = document.getElementById('diagTR');
+
+  let currentPuzzle = null;
+  let hintsLeft = 3;
+  let solvedFlag = false;
+  let startTime = 0;
+  let timerHandle = null;
+
+  function shuffle(arr){
+    for (let i = arr.length - 1; i > 0; i--){
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  function baseOddSquare(n){
+    const grid = Array.from({length:n}, () => Array(n).fill(0));
+    let i = 0, j = Math.floor(n / 2);
+    for (let num = 1; num <= n * n; num++){
+      grid[i][j] = num;
+      const ni = (i - 1 + n) % n;
+      const nj = (j + 1) % n;
+      if (grid[ni][nj] !== 0){
+        i = (i + 1) % n;
+      } else {
+        i = ni; j = nj;
+      }
+    }
+    return grid;
+  }
+
+  function rotateCW(grid){
+    const n = grid.length;
+    const res = Array.from({length:n}, () => Array(n).fill(0));
+    for (let i = 0; i < n; i++)
+      for (let j = 0; j < n; j++)
+        res[j][n - 1 - i] = grid[i][j];
+    return res;
+  }
+
+  function flipH(grid){
+    return grid.map(row => [...row].reverse());
+  }
+
+  function generatePuzzle(n, difficulty){
+    let grid = baseOddSquare(n);
+    const rotations = Math.floor(Math.random() * 4);
+    for (let r = 0; r < rotations; r++) grid = rotateCW(grid);
+    if (Math.random() < 0.5) grid = flipH(grid);
+
+    const a = 1 + Math.floor(Math.random() * 3);
+    const maxB = n === 3 ? 9 : 6;
+    const b = Math.floor(Math.random() * maxB);
+    grid = grid.map(row => row.map(v => a * v + b));
+    const constant = a * (n * (n * n + 1) / 2) + b * n;
+
+    const total = n * n;
+    const fracMap = { easy: 0.35, medium: 0.5, hard: 0.65 };
+    let hideCount = Math.round(total * fracMap[difficulty]);
+    hideCount = Math.min(Math.max(hideCount, 2), total - 2);
+
+    const indices = shuffle([...Array(total).keys()]);
+    const hiddenSet = new Set(indices.slice(0, hideCount));
+
+    return { grid, constant, hiddenSet, n };
+  }
+
+  function renderBoard(puzzle){
+    const { grid, n, hiddenSet } = puzzle;
+    board.style.setProperty('--cell', n === 3 ? 'clamp(56px, 12vw, 84px)' : 'clamp(36px, 7.2vw, 58px)');
+    board.style.gridTemplateColumns = `repeat(${n + 1}, var(--cell))`;
+    board.style.gridTemplateRows = `repeat(${n + 1}, var(--cell))`;
+
+    let html = '';
+    for (let r = 0; r < n; r++){
+      for (let c = 0; c < n; c++){
+        const idx = r * n + c;
+        if (hiddenSet.has(idx)){
+          html += `<input class="cell cell-input" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="3" data-row="${r}" data-col="${c}" aria-label="Row ${r + 1} column ${c + 1}, blank cell">`;
+        } else {
+          html += `<div class="cell cell-given" data-row="${r}" data-col="${c}">${grid[r][c]}</div>`;
+        }
+      }
+      html += `<div class="cell sum-cell" id="rowsum-${r}">–</div>`;
+    }
+    for (let c = 0; c < n; c++){
+      html += `<div class="cell sum-cell" id="colsum-${c}">–</div>`;
+    }
+    html += `<div class="cell corner-cell" aria-hidden="true">&Sigma;</div>`;
+    board.innerHTML = html;
+  }
+
+  function getValue(r, c){
+    const given = board.querySelector(`.cell-given[data-row="${r}"][data-col="${c}"]`);
+    if (given) return parseInt(given.textContent, 10);
+    const inp = board.querySelector(`.cell-input[data-row="${r}"][data-col="${c}"]`);
+    if (inp && inp.value.trim() !== ''){
+      const v = parseInt(inp.value, 10);
+      return isNaN(v) ? undefined : v;
+    }
+    return undefined;
+  }
+
+  function computeLineSum(cells){
+    let sum = 0, filledCount = 0;
+    for (const [r, c] of cells){
+      const v = getValue(r, c);
+      if (v !== undefined){ sum += v; filledCount++; }
+    }
+    return { sum, complete: filledCount === cells.length };
+  }
+
+  function setSumCell(el, sum, complete, target, prefix){
+    if (!el) return;
+    prefix = prefix || '';
+    el.classList.remove('good', 'bad', 'partial');
+    if (sum === 0 && !complete){
+      el.textContent = prefix + '–';
+      return;
+    }
+    el.textContent = prefix + sum;
+    if (complete){
+      el.classList.add(sum === target ? 'good' : 'bad');
+    } else {
+      el.classList.add('partial');
+    }
+  }
+
+  function updateSums(){
+    if (!currentPuzzle) return;
+    const n = currentPuzzle.n, target = currentPuzzle.constant;
+    for (let r = 0; r < n; r++){
+      const cells = [...Array(n).keys()].map(c => [r, c]);
+      const { sum, complete } = computeLineSum(cells);
+      setSumCell(document.getElementById('rowsum-' + r), sum, complete, target);
+    }
+    for (let c = 0; c < n; c++){
+      const cells = [...Array(n).keys()].map(r => [r, c]);
+      const { sum, complete } = computeLineSum(cells);
+      setSumCell(document.getElementById('colsum-' + c), sum, complete, target);
+    }
+    const d1 = computeLineSum([...Array(n).keys()].map(i => [i, i]));
+    const d2 = computeLineSum([...Array(n).keys()].map(i => [i, n - 1 - i]));
+    setSumCell(diagTL, d1.sum, d1.complete, target);
+    setSumCell(diagTR, d2.sum, d2.complete, target);
+  }
+
+  function formatTime(s){
+    const m = String(Math.floor(s / 60)).padStart(2, '0');
+    const sec = String(s % 60).padStart(2, '0');
+    return `${m}:${sec}`;
+  }
+
+  function startTimer(){
+    clearInterval(timerHandle);
+    startTime = Date.now();
+    timerVal.textContent = '00:00';
+    timerHandle = setInterval(() => {
+      if (solvedFlag) return;
+      timerVal.textContent = formatTime(Math.floor((Date.now() - startTime) / 1000));
+    }, 1000);
+  }
+
+  function spawnChalkBurst(){
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    for (let i = 0; i < 14; i++){
+      const dot = document.createElement('span');
+      dot.className = 'chalk-dot';
+      const angle = Math.random() * Math.PI * 2;
+      const dist = 40 + Math.random() * 90;
+      dot.style.setProperty('--dx', Math.cos(angle) * dist + 'px');
+      dot.style.setProperty('--dy', Math.sin(angle) * dist + 'px');
+      dot.style.left = '50%';
+      dot.style.top = '50%';
+      dot.style.background = Math.random() < 0.5 ? 'var(--yellow)' : 'var(--chalk)';
+      boardWrap.appendChild(dot);
+      setTimeout(() => dot.remove(), 900);
+    }
+  }
+
+  function onSolved(){
+    clearInterval(timerHandle);
+    solvedFlag = true;
+    const elapsed = formatTime(Math.floor((Date.now() - startTime) / 1000));
+    message.textContent = `Solved! Every line adds to ${currentPuzzle.constant}. Time: ${elapsed}`;
+    message.className = 'message success';
+    board.classList.add('solved');
+    board.querySelectorAll('.cell-input').forEach(inp => inp.setAttribute('readonly', 'true'));
+    hintBtn.disabled = true;
+    spawnChalkBurst();
+  }
+
+  function checkAnswers(){
+    if (!currentPuzzle || solvedFlag) return;
+    const inputs = board.querySelectorAll('.cell-input');
+    let allCorrect = true, filledAll = true;
+    inputs.forEach(inp => {
+      inp.classList.remove('correct', 'incorrect');
+      const r = +inp.dataset.row, c = +inp.dataset.col;
+      const actual = currentPuzzle.grid[r][c];
+      if (inp.value.trim() === ''){ filledAll = false; allCorrect = false; return; }
+      const v = parseInt(inp.value, 10);
+      if (v === actual){ inp.classList.add('correct'); }
+      else { inp.classList.add('incorrect'); allCorrect = false; }
+    });
+    if (allCorrect){
+      onSolved();
+    } else {
+      message.textContent = filledAll
+        ? "Not quite — the coral cells don't fit yet. Keep adjusting!"
+        : "Fill in every cell, then check again.";
+      message.className = 'message hint';
+    }
+  }
+
+  function useHint(){
+    if (!currentPuzzle || hintsLeft <= 0 || solvedFlag) return;
+    const candidates = [...board.querySelectorAll('.cell-input')].filter(inp => {
+      const r = +inp.dataset.row, c = +inp.dataset.col;
+      return inp.value.trim() === '' || parseInt(inp.value, 10) !== currentPuzzle.grid[r][c];
+    });
+    if (!candidates.length){ hintBtn.disabled = true; return; }
+    const pick = candidates[Math.floor(Math.random() * candidates.length)];
+    const r = +pick.dataset.row, c = +pick.dataset.col;
+    pick.value = currentPuzzle.grid[r][c];
+    pick.classList.remove('incorrect');
+    pick.classList.add('hinted');
+    hintsLeft--;
+    hintsVal.textContent = hintsLeft;
+    updateSums();
+    if (hintsLeft <= 0) hintBtn.disabled = true;
+  }
+
+  function newPuzzle(){
+    const n = parseInt(sizeSelect.value, 10);
+    const diff = diffSelect.value;
+    currentPuzzle = generatePuzzle(n, diff);
+    solvedFlag = false;
+    targetVal.textContent = currentPuzzle.constant;
+    hintsLeft = diff === 'hard' ? 2 : 3;
+    hintsVal.textContent = hintsLeft;
+    hintBtn.disabled = false;
+    message.textContent = '';
+    message.className = 'message';
+    board.classList.remove('solved');
+    renderBoard(currentPuzzle);
+    updateSums();
+    startTimer();
+  }
+
+  board.addEventListener('input', e => {
+    if (!e.target.classList.contains('cell-input')) return;
+    e.target.value = e.target.value.replace(/[^0-9]/g, '').slice(0, 3);
+    e.target.classList.remove('correct', 'incorrect', 'hinted');
+    updateSums();
+  });
+
+  board.addEventListener('keydown', e => {
+    if (e.target.classList.contains('cell-input') && e.key === 'Enter'){
+      e.preventDefault();
+      checkAnswers();
+    }
+  });
+
+  sizeSelect.addEventListener('change', newPuzzle);
+  diffSelect.addEventListener('change', newPuzzle);
+  newBtn.addEventListener('click', newPuzzle);
+  checkBtn.addEventListener('click', checkAnswers);
+  hintBtn.addEventListener('click', useHint);
+
+  newPuzzle();
+})();
+</script>
+
+</body>
+</html>
