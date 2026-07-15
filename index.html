@@ -253,6 +253,16 @@
     75%{transform:translateX(3px);}
   }
 
+  .board[data-n="10"] .cell{
+    font-size:clamp(0.55rem, 1.9vw, 0.78rem);
+    border-width:1px;
+    border-radius:4px;
+  }
+  .board[data-n="4"] .cell,
+  .board[data-n="5"] .cell{
+    border-width:1.5px;
+  }
+
   .sum-cell{
     color:var(--chalk-dim);
     background:transparent;
@@ -321,6 +331,68 @@
     .board-wrap{padding:14px;}
     .stats{gap:14px;}
   }
+
+  .admin-overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(5,12,7,0.72);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    z-index:1000;
+    padding:20px;
+  }
+  .admin-overlay.open{ display:flex; }
+  .admin-panel{
+    width:100%;
+    max-width:380px;
+    background:var(--bg-panel);
+    border:2px dashed var(--yellow);
+    border-radius:14px;
+    padding:22px;
+    box-shadow:0 20px 50px rgba(0,0,0,0.5);
+  }
+  .admin-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+  }
+  .admin-head h2{
+    font-family:var(--font-display);
+    color:var(--yellow);
+    margin:0;
+    font-size:1.5rem;
+  }
+  .admin-close{
+    background:transparent;
+    border:none;
+    color:var(--chalk-dim);
+    font-size:1.6rem;
+    line-height:1;
+    cursor:pointer;
+    padding:0 4px;
+  }
+  .admin-close:hover{ color:var(--chalk); }
+  .admin-sub{
+    color:var(--chalk-dim);
+    font-size:0.78rem;
+    margin:4px 0 18px;
+  }
+  .admin-row{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    flex-wrap:wrap;
+    margin-bottom:12px;
+  }
+  .admin-label{
+    font-size:0.75rem;
+    text-transform:uppercase;
+    letter-spacing:0.08em;
+    color:var(--chalk-dim);
+    margin-right:2px;
+  }
+  .admin-btn{ font-size:0.9rem; padding:8px 14px; }
 </style>
 </head>
 <body>
@@ -334,8 +406,11 @@
   <div class="controls" role="group" aria-label="Puzzle settings">
     <label>Size
       <select id="sizeSelect" aria-label="Grid size">
-        <option value="3">3 × 3</option>
+        <option value="2">2 × 2</option>
+        <option value="3" selected>3 × 3</option>
+        <option value="4">4 × 4</option>
         <option value="5">5 × 5</option>
+        <option value="10">10 × 10</option>
       </select>
     </label>
     <label>Difficulty
@@ -347,6 +422,8 @@
       </select>
     </label>
     <button id="newBtn" class="btn btn-ghost" type="button">New Puzzle</button>
+    <button id="saveCodeBtn" class="btn btn-ghost" type="button">Save Code</button>
+    <button id="loadCodeBtn" class="btn btn-ghost" type="button">Resume Code</button>
   </div>
 
   <div class="stats" aria-live="polite">
@@ -376,6 +453,25 @@
   <footer class="footnote">Every number in a puzzle is used exactly once · rows, columns and diagonals always share the magic constant</footer>
 </div>
 
+<div class="admin-overlay" id="adminOverlay">
+  <div class="admin-panel" role="dialog" aria-modal="true" aria-labelledby="adminTitle">
+    <div class="admin-head">
+      <h2 id="adminTitle">Admin Panel</h2>
+      <button id="adminCloseBtn" class="admin-close" type="button" aria-label="Close admin panel">&times;</button>
+    </div>
+    <p class="admin-sub">Typed in by finger, opened by chalk magic.</p>
+    <div class="admin-row">
+      <button id="adminHintBtn" class="btn btn-ghost admin-btn" type="button">Give a Hint</button>
+      <button id="adminRevealBtn" class="btn btn-primary admin-btn" type="button">Reveal Full Answer</button>
+    </div>
+    <div class="admin-row">
+      <span class="admin-label">Timer</span>
+      <button id="adminTimeMinus" class="btn btn-ghost admin-btn" type="button">&minus;30s</button>
+      <button id="adminTimePlus" class="btn btn-ghost admin-btn" type="button">+30s</button>
+    </div>
+  </div>
+</div>
+
 <script>
 (function(){
   "use strict";
@@ -393,6 +489,13 @@
   const message = document.getElementById('message');
   const diagTL = document.getElementById('diagTL');
   const diagTR = document.getElementById('diagTR');
+
+  const adminOverlay = document.getElementById('adminOverlay');
+  const adminCloseBtn = document.getElementById('adminCloseBtn');
+  const adminHintBtn = document.getElementById('adminHintBtn');
+  const adminRevealBtn = document.getElementById('adminRevealBtn');
+  const adminTimePlus = document.getElementById('adminTimePlus');
+  const adminTimeMinus = document.getElementById('adminTimeMinus');
 
   let currentPuzzle = null;
   let hintsLeft = 3;
@@ -437,22 +540,93 @@
     return grid.map(row => [...row].reverse());
   }
 
-  function generatePuzzle(n, difficulty){
-    let grid = baseOddSquare(n);
-    const rotations = Math.floor(Math.random() * 4);
-    for (let r = 0; r < rotations; r++) grid = rotateCW(grid);
-    if (Math.random() < 0.5) grid = flipH(grid);
+  function doublyEvenSquare(n){
+    // works for any n divisible by 4 (4, 8, 12...)
+    const grid = Array.from({length:n}, () => Array(n).fill(0));
+    for (let i = 0; i < n; i++){
+      for (let j = 0; j < n; j++){
+        const value = i * n + j + 1;
+        const edgeI = (i % 4 === 0 || i % 4 === 3);
+        const edgeJ = (j % 4 === 0 || j % 4 === 3);
+        grid[i][j] = (edgeI === edgeJ) ? value : (n * n + 1 - value);
+      }
+    }
+    return grid;
+  }
 
-    const a = 1 + Math.floor(Math.random() * 3);
-    const maxB = n === 3 ? 9 : 6;
-    const b = Math.floor(Math.random() * maxB);
-    grid = grid.map(row => row.map(v => a * v + b));
-    const constant = a * (n * (n * n + 1) / 2) + b * n;
+  function singlyEvenSquare(n){
+    // Strachey method, for n = 4k+2 (6, 10, 14...)
+    const m = n / 2;
+    const S = baseOddSquare(m);
+    const A = S.map(row => row.map(v => v));
+    const B = S.map(row => row.map(v => v + 2 * m * m));
+    const C = S.map(row => row.map(v => v + 3 * m * m));
+    const D = S.map(row => row.map(v => v + m * m));
+    const k = (m - 1) / 2;
+    const mid = (m - 1) / 2;
+    for (let col = 0; col < k; col++){
+      for (let row = 0; row < m; row++){
+        const swapCol = (row === mid) ? col + 1 : col;
+        const tmp = A[row][swapCol];
+        A[row][swapCol] = C[row][swapCol];
+        C[row][swapCol] = tmp;
+      }
+    }
+    for (let col = m - k + 1; col < m; col++){
+      for (let row = 0; row < m; row++){
+        const tmp = B[row][col];
+        B[row][col] = D[row][col];
+        D[row][col] = tmp;
+      }
+    }
+    const grid = Array.from({length:n}, () => Array(n).fill(0));
+    for (let i = 0; i < m; i++){
+      for (let j = 0; j < m; j++){
+        grid[i][j] = A[i][j];
+        grid[i][j + m] = B[i][j];
+        grid[i + m][j] = C[i][j];
+        grid[i + m][j + m] = D[i][j];
+      }
+    }
+    return grid;
+  }
+
+  function baseSquareFor(n){
+    if (n % 2 === 1) return baseOddSquare(n);
+    if (n % 4 === 0) return doublyEvenSquare(n);
+    return singlyEvenSquare(n);
+  }
+
+  function generatePuzzle(n, difficulty){
+    let grid, constant;
+
+    if (n === 2){
+      // The only true 2x2 magic squares have all four cells equal.
+      const value = 6 + Math.floor(Math.random() * 30);
+      grid = [[value, value], [value, value]];
+      constant = value * 2;
+    } else {
+      grid = baseSquareFor(n);
+      const rotations = Math.floor(Math.random() * 4);
+      for (let r = 0; r < rotations; r++) grid = rotateCW(grid);
+      if (Math.random() < 0.5) grid = flipH(grid);
+
+      const a = 1 + Math.floor(Math.random() * 3);
+      const maxB = n <= 4 ? 9 : (n <= 6 ? 5 : 2);
+      const b = Math.floor(Math.random() * maxB);
+      grid = grid.map(row => row.map(v => a * v + b));
+      constant = a * (n * (n * n + 1) / 2) + b * n;
+    }
 
     const total = n * n;
-    const fracMap = { easy: 0.35, medium: 0.5, hard: 0.65 };
-    let hideCount = Math.round(total * fracMap[difficulty]);
-    hideCount = Math.min(Math.max(hideCount, 2), total - 2);
+    let hideCount;
+    if (difficulty === 'single'){
+      hideCount = 1;
+    } else {
+      const fracMap = { easy: 0.35, medium: 0.5, hard: 0.65 };
+      hideCount = Math.round(total * fracMap[difficulty]);
+      hideCount = Math.min(Math.max(hideCount, 2), total - 2);
+    }
 
     const indices = shuffle([...Array(total).keys()]);
     const hiddenSet = new Set(indices.slice(0, hideCount));
@@ -462,9 +636,18 @@
 
   function renderBoard(puzzle){
     const { grid, n, hiddenSet } = puzzle;
-    board.style.setProperty('--cell', n === 3 ? 'clamp(56px, 12vw, 84px)' : 'clamp(36px, 7.2vw, 58px)');
+    const cellSizes = {
+      2: 'clamp(64px, 16vw, 96px)',
+      3: 'clamp(56px, 12vw, 84px)',
+      4: 'clamp(46px, 10vw, 68px)',
+      5: 'clamp(36px, 7.2vw, 58px)',
+      10: 'clamp(22px, 5.6vw, 38px)'
+    };
+    board.style.setProperty('--cell', cellSizes[n] || 'clamp(30px, 6vw, 50px)');
     board.style.gridTemplateColumns = `repeat(${n + 1}, var(--cell))`;
     board.style.gridTemplateRows = `repeat(${n + 1}, var(--cell))`;
+    board.style.gap = n >= 10 ? '3px' : (n >= 5 ? '4px' : '6px');
+    board.dataset.n = n;
 
     let html = '';
     for (let r = 0; r < n; r++){
@@ -632,7 +815,7 @@
     currentPuzzle = generatePuzzle(n, diff);
     solvedFlag = false;
     targetVal.textContent = currentPuzzle.constant;
-    hintsLeft = diff === 'hard' ? 2 : 3;
+    hintsLeft = diff === 'single' ? 1 : (diff === 'hard' ? 2 : 3);
     hintsVal.textContent = hintsLeft;
     hintBtn.disabled = false;
     message.textContent = '';
@@ -642,6 +825,47 @@
     updateSums();
     startTimer();
   }
+
+  function openAdminPanel(){ adminOverlay.classList.add('open'); }
+  function closeAdminPanel(){ adminOverlay.classList.remove('open'); }
+
+  function revealAnswer(){
+    if (!currentPuzzle || solvedFlag) return;
+    board.querySelectorAll('.cell-input').forEach(inp => {
+      const r = +inp.dataset.row, c = +inp.dataset.col;
+      inp.value = currentPuzzle.grid[r][c];
+      inp.classList.remove('incorrect', 'hinted');
+    });
+    updateSums();
+    checkAnswers();
+  }
+
+  function adjustTime(deltaSeconds){
+    if (!currentPuzzle || solvedFlag) return;
+    startTime -= deltaSeconds * 1000;
+    if (startTime > Date.now()) startTime = Date.now();
+    const elapsed = Math.max(0, Math.floor((Date.now() - startTime) / 1000));
+    timerVal.textContent = formatTime(elapsed);
+  }
+
+  adminCloseBtn.addEventListener('click', closeAdminPanel);
+  adminOverlay.addEventListener('click', e => { if (e.target === adminOverlay) closeAdminPanel(); });
+  adminHintBtn.addEventListener('click', useHint);
+  adminRevealBtn.addEventListener('click', () => { revealAnswer(); closeAdminPanel(); });
+  adminTimePlus.addEventListener('click', () => adjustTime(30));
+  adminTimeMinus.addEventListener('click', () => adjustTime(-30));
+
+  let adminBuffer = '';
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && adminOverlay.classList.contains('open')){ closeAdminPanel(); return; }
+    if (e.key.length === 1 && /[a-zA-Z]/.test(e.key)){
+      adminBuffer = (adminBuffer + e.key.toLowerCase()).slice(-5);
+      if (adminBuffer === 'admin'){
+        openAdminPanel();
+        adminBuffer = '';
+      }
+    }
+  });
 
   board.addEventListener('input', e => {
     if (!e.target.classList.contains('cell-input')) return;
