@@ -393,6 +393,72 @@
     margin-right:2px;
   }
   .admin-btn{ font-size:0.9rem; padding:8px 14px; }
+
+  .save-input{
+    width:100%;
+    font-family:var(--font-mono);
+    font-size:0.85rem;
+    background:rgba(243,239,226,0.06);
+    color:var(--chalk);
+    border:1.5px dashed var(--chalk-faint);
+    border-radius:8px;
+    padding:9px 10px;
+    margin-bottom:12px;
+  }
+  .save-input:focus-visible{ outline:2px solid var(--yellow); outline-offset:1px; }
+  .save-status{
+    font-size:0.78rem;
+    color:var(--mint);
+    min-height:1.2em;
+    margin:2px 0 0;
+  }
+  .save-status.error{ color:var(--coral); }
+  .save-list{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    max-height:280px;
+    overflow-y:auto;
+    padding-right:2px;
+  }
+  .save-item{
+    border:1.5px dashed var(--chalk-faint);
+    border-radius:10px;
+    padding:10px 12px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+  }
+  .save-item-info{
+    display:flex;
+    flex-direction:column;
+    gap:2px;
+  }
+  .save-item-label{
+    font-family:var(--font-display);
+    font-size:1.05rem;
+    color:var(--chalk);
+  }
+  .save-item-meta{
+    font-size:0.7rem;
+    color:var(--chalk-dim);
+  }
+  .save-item-actions{
+    display:flex;
+    gap:6px;
+    flex-shrink:0;
+  }
+  .save-item-actions .btn{
+    padding:6px 10px;
+    font-size:0.8rem;
+  }
+  .save-empty{
+    color:var(--chalk-dim);
+    font-size:0.85rem;
+    text-align:center;
+    padding:16px 0;
+  }
 </style>
 </head>
 <body>
@@ -422,14 +488,14 @@
       </select>
     </label>
     <button id="newBtn" class="btn btn-ghost" type="button">New Puzzle</button>
-    <button id="saveCodeBtn" class="btn btn-ghost" type="button">Save Code</button>
-    <button id="loadCodeBtn" class="btn btn-ghost" type="button">Resume Code</button>
+    <button id="saveGameBtn" class="btn btn-ghost" type="button">Save Game</button>
+    <button id="resumeGameBtn" class="btn btn-ghost" type="button">Resume Game</button>
   </div>
 
   <div class="stats" aria-live="polite">
     <div class="stat"><span class="stat-label">Target sum</span><span class="stat-value" id="targetVal">—</span></div>
     <div class="stat"><span class="stat-label">Time</span><span class="stat-value" id="timerVal">00:00</span></div>
-    <div class="stat"><span class="stat-label">Hints left</span><span class="stat-value" id="hintsVal">3</span></div>
+    <div class="stat"><span class="stat-label">Hints used</span><span class="stat-value" id="hintsVal">0</span></div>
   </div>
 
   <div class="diag-readout">
@@ -445,12 +511,22 @@
 
   <div class="actions">
     <button id="checkBtn" class="btn btn-primary" type="button">Check Answers</button>
-    <button id="hintBtn" class="btn btn-ghost" type="button">Hint</button>
+    <button id="hintBtn" class="btn btn-ghost" type="button">Add a Hint</button>
   </div>
 
   <p class="message" id="message" role="status" aria-live="polite"></p>
 
   <footer class="footnote">Every number in a puzzle is used exactly once · rows, columns and diagonals always share the magic constant</footer>
+</div>
+
+<div class="admin-overlay" id="saveOverlay">
+  <div class="admin-panel" role="dialog" aria-modal="true" aria-labelledby="saveModalTitle">
+    <div class="admin-head">
+      <h2 id="saveModalTitle">Save &amp; Resume</h2>
+      <button id="saveCloseBtn" class="admin-close" type="button" aria-label="Close">&times;</button>
+    </div>
+    <div id="saveModalBody"></div>
+  </div>
 </div>
 
 <div class="admin-overlay" id="adminOverlay">
@@ -497,11 +573,18 @@
   const adminTimePlus = document.getElementById('adminTimePlus');
   const adminTimeMinus = document.getElementById('adminTimeMinus');
 
+  const saveOverlay = document.getElementById('saveOverlay');
+  const saveCloseBtn = document.getElementById('saveCloseBtn');
+  const saveModalBody = document.getElementById('saveModalBody');
+  const saveGameBtn = document.getElementById('saveGameBtn');
+  const resumeGameBtn = document.getElementById('resumeGameBtn');
+
   let currentPuzzle = null;
-  let hintsLeft = 3;
+  let hintsUsed = 0;
   let solvedFlag = false;
   let startTime = 0;
   let timerHandle = null;
+  let solvedElapsedSeconds = 0;
 
   function shuffle(arr){
     for (let i = arr.length - 1; i > 0; i--){
@@ -623,8 +706,21 @@
     if (difficulty === 'single'){
       hideCount = 1;
     } else {
-      const fracMap = { easy: 0.35, medium: 0.5, hard: 0.65 };
-      hideCount = Math.round(total * fracMap[difficulty]);
+      // Hand-tuned blank counts per size so "easy" stays easy and big
+      // grids like 10x10 don't drown the player in blanks.
+      const hideTable = {
+        3:  { easy: 2,  medium: 4,  hard: 6  },
+        4:  { easy: 3,  medium: 6,  hard: 9  },
+        5:  { easy: 4,  medium: 8,  hard: 13 },
+        10: { easy: 8,  medium: 20, hard: 38 }
+      };
+      const sizeTable = hideTable[n];
+      if (sizeTable && sizeTable[difficulty] !== undefined){
+        hideCount = sizeTable[difficulty];
+      } else {
+        const fracMap = { easy: 0.25, medium: 0.45, hard: 0.6 };
+        hideCount = Math.round(total * fracMap[difficulty]);
+      }
       hideCount = Math.min(Math.max(hideCount, 2), total - 2);
     }
 
@@ -759,7 +855,8 @@
   function onSolved(){
     clearInterval(timerHandle);
     solvedFlag = true;
-    const elapsed = formatTime(Math.floor((Date.now() - startTime) / 1000));
+    solvedElapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
+    const elapsed = formatTime(solvedElapsedSeconds);
     message.textContent = `Solved! Every line adds to ${currentPuzzle.constant}. Time: ${elapsed}`;
     message.className = 'message success';
     board.classList.add('solved');
@@ -792,21 +889,20 @@
   }
 
   function useHint(){
-    if (!currentPuzzle || hintsLeft <= 0 || solvedFlag) return;
+    if (!currentPuzzle || solvedFlag) return;
     const candidates = [...board.querySelectorAll('.cell-input')].filter(inp => {
       const r = +inp.dataset.row, c = +inp.dataset.col;
       return inp.value.trim() === '' || parseInt(inp.value, 10) !== currentPuzzle.grid[r][c];
     });
-    if (!candidates.length){ hintBtn.disabled = true; return; }
+    if (!candidates.length){ return; }
     const pick = candidates[Math.floor(Math.random() * candidates.length)];
     const r = +pick.dataset.row, c = +pick.dataset.col;
     pick.value = currentPuzzle.grid[r][c];
     pick.classList.remove('incorrect');
     pick.classList.add('hinted');
-    hintsLeft--;
-    hintsVal.textContent = hintsLeft;
+    hintsUsed++;
+    hintsVal.textContent = hintsUsed;
     updateSums();
-    if (hintsLeft <= 0) hintBtn.disabled = true;
   }
 
   function newPuzzle(){
@@ -815,8 +911,8 @@
     currentPuzzle = generatePuzzle(n, diff);
     solvedFlag = false;
     targetVal.textContent = currentPuzzle.constant;
-    hintsLeft = diff === 'single' ? 1 : (diff === 'hard' ? 2 : 3);
-    hintsVal.textContent = hintsLeft;
+    hintsUsed = 0;
+    hintsVal.textContent = hintsUsed;
     hintBtn.disabled = false;
     message.textContent = '';
     message.className = 'message';
@@ -847,6 +943,180 @@
     const elapsed = Math.max(0, Math.floor((Date.now() - startTime) / 1000));
     timerVal.textContent = formatTime(elapsed);
   }
+
+  function openSaveOverlay(){ saveOverlay.classList.add('open'); }
+  function closeSaveOverlay(){ saveOverlay.classList.remove('open'); }
+
+  function currentElapsedSeconds(){
+    return solvedFlag ? solvedElapsedSeconds : Math.floor((Date.now() - startTime) / 1000);
+  }
+
+  function buildGameState(){
+    if (!currentPuzzle) return null;
+    const values = {};
+    board.querySelectorAll('.cell-input').forEach(inp => {
+      if (inp.value.trim() !== ''){
+        const r = +inp.dataset.row, c = +inp.dataset.col;
+        values[r * currentPuzzle.n + c] = inp.value.trim();
+      }
+    });
+    return {
+      n: currentPuzzle.n,
+      grid: currentPuzzle.grid,
+      hidden: [...currentPuzzle.hiddenSet],
+      constant: currentPuzzle.constant,
+      difficulty: diffSelect.value,
+      hintsUsed,
+      elapsed: currentElapsedSeconds(),
+      values,
+      solved: solvedFlag
+    };
+  }
+
+  function applyGameState(state){
+    if (!state || !state.n || !state.grid || !state.hidden) throw new Error('Invalid saved game');
+    const n = state.n;
+    sizeSelect.value = String(n);
+    if (state.difficulty) diffSelect.value = state.difficulty;
+    currentPuzzle = {
+      n,
+      grid: state.grid,
+      constant: state.constant,
+      hiddenSet: new Set(state.hidden)
+    };
+    solvedFlag = false;
+    message.textContent = '';
+    message.className = 'message';
+    board.classList.remove('solved');
+    renderBoard(currentPuzzle);
+    targetVal.textContent = currentPuzzle.constant;
+    hintsUsed = typeof state.hintsUsed === 'number' ? state.hintsUsed : 0;
+    hintsVal.textContent = hintsUsed;
+    hintBtn.disabled = false;
+
+    board.querySelectorAll('.cell-input').forEach(inp => {
+      const r = +inp.dataset.row, c = +inp.dataset.col;
+      const idx = r * n + c;
+      if (state.values && state.values[idx] !== undefined){
+        inp.value = state.values[idx];
+      }
+    });
+    updateSums();
+    clearInterval(timerHandle);
+
+    if (state.solved){
+      solvedFlag = true;
+      solvedElapsedSeconds = state.elapsed || 0;
+      timerVal.textContent = formatTime(solvedElapsedSeconds);
+      board.classList.add('solved');
+      board.querySelectorAll('.cell-input').forEach(inp => inp.setAttribute('readonly', 'true'));
+      hintBtn.disabled = true;
+      message.textContent = `Solved! Every line adds to ${currentPuzzle.constant}.`;
+      message.className = 'message success';
+    } else {
+      startTime = Date.now() - (state.elapsed || 0) * 1000;
+      timerVal.textContent = formatTime(state.elapsed || 0);
+      timerHandle = setInterval(() => {
+        if (solvedFlag) return;
+        timerVal.textContent = formatTime(Math.floor((Date.now() - startTime) / 1000));
+      }, 1000);
+    }
+  }
+
+  function renderSaveForm(){
+    const n = currentPuzzle ? currentPuzzle.n : parseInt(sizeSelect.value, 10);
+    const defaultLabel = `${n}×${n} · ${diffSelect.options[diffSelect.selectedIndex].text} · ${formatTime(currentElapsedSeconds())}`;
+    saveModalBody.innerHTML = `
+      <p class="admin-sub">Give this save a name, then it'll be waiting in your browser next time.</p>
+      <input type="text" id="saveLabelInput" class="save-input" maxlength="60" value="${defaultLabel}">
+      <div class="admin-row">
+        <button id="confirmSaveBtn" class="btn btn-primary admin-btn" type="button">Save Game</button>
+      </div>
+      <p class="save-status" id="saveStatus"></p>
+    `;
+    document.getElementById('confirmSaveBtn').addEventListener('click', async () => {
+      const status = document.getElementById('saveStatus');
+      const label = document.getElementById('saveLabelInput').value.trim() || defaultLabel;
+      const state = buildGameState();
+      if (!state){ status.textContent = 'No active puzzle to save.'; status.classList.add('error'); return; }
+      const key = `save:${Date.now()}`;
+      const payload = JSON.stringify({ ...state, label, savedAt: Date.now() });
+      try {
+        const result = await window.storage.set(key, payload, false);
+        if (!result) throw new Error('Storage write failed');
+        status.textContent = 'Saved! Find it under "Resume Game" anytime.';
+        status.classList.remove('error');
+      } catch (err){
+        status.textContent = "Couldn't save right now — please try again.";
+        status.classList.add('error');
+      }
+    });
+  }
+
+  async function renderResumeList(){
+    saveModalBody.innerHTML = `<p class="save-empty">Loading saved games…</p>`;
+    let entries = [];
+    try {
+      const listResult = await window.storage.list('save:', false);
+      const keys = (listResult && listResult.keys) || [];
+      for (const key of keys){
+        try {
+          const got = await window.storage.get(key, false);
+          if (got && got.value){
+            const parsed = JSON.parse(got.value);
+            entries.push({ key, parsed });
+          }
+        } catch (innerErr){ /* skip unreadable entry */ }
+      }
+    } catch (err){
+      saveModalBody.innerHTML = `<p class="save-empty">Couldn't load saved games right now.</p>`;
+      return;
+    }
+
+    entries.sort((a, b) => (b.parsed.savedAt || 0) - (a.parsed.savedAt || 0));
+
+    if (!entries.length){
+      saveModalBody.innerHTML = `<p class="save-empty">No saved games yet — play a bit and hit "Save Game".</p>`;
+      return;
+    }
+
+    saveModalBody.innerHTML = `<div class="save-list" id="saveList"></div>`;
+    const list = document.getElementById('saveList');
+    entries.forEach(({ key, parsed }) => {
+      const item = document.createElement('div');
+      item.className = 'save-item';
+      const when = parsed.savedAt ? new Date(parsed.savedAt).toLocaleString() : '';
+      const status = parsed.solved ? 'Solved' : `${formatTime(parsed.elapsed || 0)} elapsed`;
+      item.innerHTML = `
+        <div class="save-item-info">
+          <span class="save-item-label">${(parsed.label || 'Saved puzzle').replace(/[<>]/g, '')}</span>
+          <span class="save-item-meta">${status} · ${when}</span>
+        </div>
+        <div class="save-item-actions">
+          <button class="btn btn-primary" type="button" data-action="resume">Resume</button>
+          <button class="btn btn-ghost" type="button" data-action="delete">Delete</button>
+        </div>
+      `;
+      item.querySelector('[data-action="resume"]').addEventListener('click', () => {
+        try {
+          applyGameState(parsed);
+          closeSaveOverlay();
+        } catch (err){
+          item.querySelector('.save-item-meta').textContent = "Couldn't resume this save.";
+        }
+      });
+      item.querySelector('[data-action="delete"]').addEventListener('click', async () => {
+        try { await window.storage.delete(key, false); } catch (err){ /* ignore */ }
+        renderResumeList();
+      });
+      list.appendChild(item);
+    });
+  }
+
+  saveCloseBtn.addEventListener('click', closeSaveOverlay);
+  saveOverlay.addEventListener('click', e => { if (e.target === saveOverlay) closeSaveOverlay(); });
+  saveGameBtn.addEventListener('click', () => { renderSaveForm(); openSaveOverlay(); });
+  resumeGameBtn.addEventListener('click', () => { renderResumeList(); openSaveOverlay(); });
 
   adminCloseBtn.addEventListener('click', closeAdminPanel);
   adminOverlay.addEventListener('click', e => { if (e.target === adminOverlay) closeAdminPanel(); });
