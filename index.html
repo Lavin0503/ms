@@ -947,6 +947,55 @@
   function openSaveOverlay(){ saveOverlay.classList.add('open'); }
   function closeSaveOverlay(){ saveOverlay.classList.remove('open'); }
 
+  // --- Storage wrapper -----------------------------------------------
+  // Prefer the persistent window.storage API. If it isn't present in
+  // this environment (or throws), fall back to an in-memory store so
+  // saving/resuming still works for the current browser session.
+  const memoryStore = new Map();
+  let storageWarned = false;
+
+  function hasRealStorage(){
+    return typeof window.storage === 'object' && window.storage !== null &&
+      typeof window.storage.set === 'function';
+  }
+
+  async function storageSet(key, value){
+    if (hasRealStorage()){
+      try { return await window.storage.set(key, value, false); }
+      catch (err){ /* fall through to memory */ }
+    }
+    memoryStore.set(key, value);
+    return { key, value, shared: false };
+  }
+
+  async function storageGet(key){
+    if (hasRealStorage()){
+      try { return await window.storage.get(key, false); }
+      catch (err){ /* fall through to memory */ }
+    }
+    if (memoryStore.has(key)) return { key, value: memoryStore.get(key), shared: false };
+    throw new Error('Key not found');
+  }
+
+  async function storageList(prefix){
+    if (hasRealStorage()){
+      try { return await window.storage.list(prefix, false); }
+      catch (err){ /* fall through to memory */ }
+    }
+    const keys = [...memoryStore.keys()].filter(k => k.startsWith(prefix));
+    return { keys, prefix, shared: false };
+  }
+
+  async function storageDelete(key){
+    if (hasRealStorage()){
+      try { return await window.storage.delete(key, false); }
+      catch (err){ /* fall through to memory */ }
+    }
+    memoryStore.delete(key);
+    return { key, deleted: true, shared: false };
+  }
+  // ---------------------------------------------------------------------
+
   function currentElapsedSeconds(){
     return solvedFlag ? solvedElapsedSeconds : Math.floor((Date.now() - startTime) / 1000);
   }
@@ -1028,6 +1077,7 @@
     const defaultLabel = `${n}×${n} · ${diffSelect.options[diffSelect.selectedIndex].text} · ${formatTime(currentElapsedSeconds())}`;
     saveModalBody.innerHTML = `
       <p class="admin-sub">Give this save a name, then it'll be waiting in your browser next time.</p>
+      ${hasRealStorage() ? '' : '<p class="save-status error">Persistent storage isn\'t available in this view, so saves will only last for this session.</p>'}
       <input type="text" id="saveLabelInput" class="save-input" maxlength="60" value="${defaultLabel}">
       <div class="admin-row">
         <button id="confirmSaveBtn" class="btn btn-primary admin-btn" type="button">Save Game</button>
@@ -1042,9 +1092,11 @@
       const key = `save:${Date.now()}`;
       const payload = JSON.stringify({ ...state, label, savedAt: Date.now() });
       try {
-        const result = await window.storage.set(key, payload, false);
+        const result = await storageSet(key, payload);
         if (!result) throw new Error('Storage write failed');
-        status.textContent = 'Saved! Find it under "Resume Game" anytime.';
+        status.textContent = hasRealStorage()
+          ? 'Saved! Find it under "Resume Game" anytime.'
+          : 'Saved for this session (this browser view can\'t persist saves after it closes).';
         status.classList.remove('error');
       } catch (err){
         status.textContent = "Couldn't save right now — please try again.";
@@ -1057,11 +1109,11 @@
     saveModalBody.innerHTML = `<p class="save-empty">Loading saved games…</p>`;
     let entries = [];
     try {
-      const listResult = await window.storage.list('save:', false);
+      const listResult = await storageList('save:');
       const keys = (listResult && listResult.keys) || [];
       for (const key of keys){
         try {
-          const got = await window.storage.get(key, false);
+          const got = await storageGet(key);
           if (got && got.value){
             const parsed = JSON.parse(got.value);
             entries.push({ key, parsed });
@@ -1106,7 +1158,7 @@
         }
       });
       item.querySelector('[data-action="delete"]').addEventListener('click', async () => {
-        try { await window.storage.delete(key, false); } catch (err){ /* ignore */ }
+        try { await storageDelete(key); } catch (err){ /* ignore */ }
         renderResumeList();
       });
       list.appendChild(item);
