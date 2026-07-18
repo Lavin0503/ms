@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Magic Square — Chalkboard Puzzle</title>
+<link rel="icon" type="image/png" href="https://raw.githubusercontent.com/Lavin0503/ms/main/2026_07_18_0i9_Kleki.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -49,6 +50,46 @@
 
   .hero{
     text-align:center;
+  }
+  .title-row{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:14px;
+    flex-wrap:wrap;
+  }
+  .logo-img{
+    width:56px;
+    height:56px;
+    object-fit:cover;
+    border-radius:12px;
+    border:2px dashed var(--chalk-faint);
+    background:rgba(243,239,226,0.05);
+    flex-shrink:0;
+  }
+  .icon-only-btn{
+    display:inline-flex;
+    margin-top:16px;
+    width:46px;
+    height:46px;
+    border-radius:50%;
+    overflow:hidden;
+    border:2px dashed var(--chalk-faint);
+    transition:transform 0.12s ease, border-color 0.12s ease;
+  }
+  .icon-only-btn:hover{
+    border-color:var(--yellow);
+    transform:translateY(-2px);
+  }
+  .icon-only-btn:focus-visible{
+    outline:2px solid var(--yellow);
+    outline-offset:3px;
+  }
+  .btn-icon-only{
+    width:100%;
+    height:100%;
+    object-fit:cover;
+    display:block;
   }
   .hero h1{
     font-family:var(--font-display);
@@ -459,14 +500,44 @@
     text-align:center;
     padding:16px 0;
   }
+
+  .instructions-panel{
+    max-width:440px;
+  }
+  .instructions-list{
+    margin:4px 0 16px;
+    padding-left:20px;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    font-size:0.85rem;
+    color:var(--chalk-dim);
+    line-height:1.5;
+  }
+  .instructions-list strong{ color:var(--chalk); }
+  .tag{
+    font-family:var(--font-mono);
+    font-weight:700;
+    padding:1px 8px;
+    border-radius:5px;
+    font-size:0.78rem;
+  }
+  .tag-mint{ background:var(--mint); color:#1c3319; }
+  .tag-coral{ background:var(--coral); color:#3a1410; }
 </style>
 </head>
 <body>
 
 <div class="page">
   <div class="hero">
-    <h1>Magic Square</h1>
+    <div class="title-row">
+      <img src="https://raw.githubusercontent.com/Lavin0503/ms/main/2026_07_18_0i9_Kleki.png" alt="" class="logo-img">
+      <h1>Magic Square</h1>
+    </div>
     <p>Fill the blank chalk squares so every row, column, and both diagonals add up to the same total. A fresh puzzle every time.</p>
+    <a href="https://lavin0503.github.io/ums/" target="_blank" rel="noopener noreferrer" class="icon-only-btn" aria-label="Open UMS">
+      <img src="https://lavin0503.github.io/ums/Screenshot%202026-04-26%20103644.png" alt="Open UMS" class="btn-icon-only">
+    </a>
   </div>
 
   <div class="controls" role="group" aria-label="Puzzle settings">
@@ -495,7 +566,7 @@
   <div class="stats" aria-live="polite">
     <div class="stat"><span class="stat-label">Target sum</span><span class="stat-value" id="targetVal">—</span></div>
     <div class="stat"><span class="stat-label">Time</span><span class="stat-value" id="timerVal">00:00</span></div>
-    <div class="stat"><span class="stat-label">Hints used</span><span class="stat-value" id="hintsVal">0</span></div>
+    <div class="stat"><span class="stat-label">Hints Remaining</span><span class="stat-value" id="hintsVal">0</span></div>
   </div>
 
   <div class="diag-readout">
@@ -511,12 +582,33 @@
 
   <div class="actions">
     <button id="checkBtn" class="btn btn-primary" type="button">Check Answers</button>
-    <button id="hintBtn" class="btn btn-ghost" type="button">Add a Hint</button>
+    <button id="hintBtn" class="btn btn-ghost" type="button">Use a Hint</button>
   </div>
 
   <p class="message" id="message" role="status" aria-live="polite"></p>
 
   <footer class="footnote">Every number in a puzzle is used exactly once · rows, columns and diagonals always share the magic constant</footer>
+</div>
+
+<div class="admin-overlay" id="instructionsOverlay">
+  <div class="admin-panel instructions-panel" role="dialog" aria-modal="true" aria-labelledby="instructionsTitle">
+    <div class="admin-head">
+      <h2 id="instructionsTitle">How to Play</h2>
+      <button id="instructionsCloseBtn" class="admin-close" type="button" aria-label="Close">&times;</button>
+    </div>
+    <ul class="instructions-list">
+      <li>Fill in the blank chalk squares so every <strong>row</strong>, <strong>column</strong>, and both <strong>diagonals</strong> add up to the same target sum shown at the top.</li>
+      <li>Pick a grid size and difficulty, then hit <strong>New Puzzle</strong> for a fresh shuffle.</li>
+      <li>The numbers along the edge of the grid track your running totals — <span class="tag tag-mint">mint</span> means it matches the target, <span class="tag tag-coral">coral</span> means it's off, gold means still in progress.</li>
+      <li>Click <strong>Check Answers</strong> anytime to see how you're doing.</li>
+      <li>Stuck? <strong>Use a Hint</strong> reveals one correct number — use as many as you like.</li>
+      <li>Your timer starts the moment you type your first number.</li>
+      <li><strong>Save Game</strong> stores your progress in this browser, and <strong>Resume Game</strong> brings it back anytime.</li>
+    </ul>
+    <div class="admin-row">
+      <button id="instructionsGotItBtn" class="btn btn-primary admin-btn" type="button">Let's Play</button>
+    </div>
+  </div>
 </div>
 
 <div class="admin-overlay" id="saveOverlay">
@@ -537,7 +629,7 @@
     </div>
     <p class="admin-sub">Typed in by finger, opened by chalk magic.</p>
     <div class="admin-row">
-      <button id="adminHintBtn" class="btn btn-ghost admin-btn" type="button">Give a Hint</button>
+      <button id="adminHintBtn" class="btn btn-ghost admin-btn" type="button">Add a Hint</button>
       <button id="adminRevealBtn" class="btn btn-primary admin-btn" type="button">Reveal Full Answer</button>
     </div>
     <div class="admin-row">
@@ -579,11 +671,16 @@
   const saveGameBtn = document.getElementById('saveGameBtn');
   const resumeGameBtn = document.getElementById('resumeGameBtn');
 
+  const instructionsOverlay = document.getElementById('instructionsOverlay');
+  const instructionsCloseBtn = document.getElementById('instructionsCloseBtn');
+  const instructionsGotItBtn = document.getElementById('instructionsGotItBtn');
+
   let currentPuzzle = null;
   let hintsUsed = 0;
   let solvedFlag = false;
   let startTime = 0;
   let timerHandle = null;
+  let timerStarted = false;
   let solvedElapsedSeconds = 0;
 
   function shuffle(arr){
@@ -800,6 +897,14 @@
     }
   }
 
+  function countRemainingBlanks(){
+    if (!currentPuzzle) return 0;
+    return [...board.querySelectorAll('.cell-input')].filter(inp => {
+      const r = +inp.dataset.row, c = +inp.dataset.col;
+      return inp.value.trim() === '' || parseInt(inp.value, 10) !== currentPuzzle.grid[r][c];
+    }).length;
+  }
+
   function updateSums(){
     if (!currentPuzzle) return;
     const n = currentPuzzle.n, target = currentPuzzle.constant;
@@ -817,6 +922,7 @@
     const d2 = computeLineSum([...Array(n).keys()].map(i => [i, n - 1 - i]));
     setSumCell(diagTL, d1.sum, d1.complete, target);
     setSumCell(diagTR, d2.sum, d2.complete, target);
+    hintsVal.textContent = countRemainingBlanks();
   }
 
   function formatTime(s){
@@ -825,14 +931,26 @@
     return `${m}:${sec}`;
   }
 
-  function startTimer(){
+  function beginTimerInterval(){
     clearInterval(timerHandle);
-    startTime = Date.now();
-    timerVal.textContent = '00:00';
     timerHandle = setInterval(() => {
       if (solvedFlag) return;
       timerVal.textContent = formatTime(Math.floor((Date.now() - startTime) / 1000));
     }, 1000);
+  }
+
+  function startTimer(){
+    timerStarted = true;
+    startTime = Date.now();
+    timerVal.textContent = '00:00';
+    beginTimerInterval();
+  }
+
+  function resetTimerAwaitingFirstMove(){
+    clearInterval(timerHandle);
+    timerStarted = false;
+    startTime = 0;
+    timerVal.textContent = '00:00';
   }
 
   function spawnChalkBurst(){
@@ -855,7 +973,7 @@
   function onSolved(){
     clearInterval(timerHandle);
     solvedFlag = true;
-    solvedElapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
+    solvedElapsedSeconds = timerStarted ? Math.floor((Date.now() - startTime) / 1000) : 0;
     const elapsed = formatTime(solvedElapsedSeconds);
     message.textContent = `Solved! Every line adds to ${currentPuzzle.constant}. Time: ${elapsed}`;
     message.className = 'message success';
@@ -901,7 +1019,6 @@
     pick.classList.remove('incorrect');
     pick.classList.add('hinted');
     hintsUsed++;
-    hintsVal.textContent = hintsUsed;
     updateSums();
   }
 
@@ -919,7 +1036,7 @@
     board.classList.remove('solved');
     renderBoard(currentPuzzle);
     updateSums();
-    startTimer();
+    resetTimerAwaitingFirstMove();
   }
 
   function openAdminPanel(){ adminOverlay.classList.add('open'); }
@@ -938,6 +1055,11 @@
 
   function adjustTime(deltaSeconds){
     if (!currentPuzzle || solvedFlag) return;
+    if (!timerStarted){
+      timerStarted = true;
+      startTime = Date.now();
+      beginTimerInterval();
+    }
     startTime -= deltaSeconds * 1000;
     if (startTime > Date.now()) startTime = Date.now();
     const elapsed = Math.max(0, Math.floor((Date.now() - startTime) / 1000));
@@ -946,6 +1068,12 @@
 
   function openSaveOverlay(){ saveOverlay.classList.add('open'); }
   function closeSaveOverlay(){ saveOverlay.classList.remove('open'); }
+
+  function openInstructions(){ instructionsOverlay.classList.add('open'); }
+  function closeInstructions(){ instructionsOverlay.classList.remove('open'); }
+  instructionsCloseBtn.addEventListener('click', closeInstructions);
+  instructionsGotItBtn.addEventListener('click', closeInstructions);
+  instructionsOverlay.addEventListener('click', e => { if (e.target === instructionsOverlay) closeInstructions(); });
 
   // --- Storage wrapper -----------------------------------------------
   // Prefer the persistent window.storage API. If it isn't present in
@@ -997,7 +1125,9 @@
   // ---------------------------------------------------------------------
 
   function currentElapsedSeconds(){
-    return solvedFlag ? solvedElapsedSeconds : Math.floor((Date.now() - startTime) / 1000);
+    if (solvedFlag) return solvedElapsedSeconds;
+    if (!timerStarted) return 0;
+    return Math.floor((Date.now() - startTime) / 1000);
   }
 
   function buildGameState(){
@@ -1055,6 +1185,7 @@
 
     if (state.solved){
       solvedFlag = true;
+      timerStarted = true;
       solvedElapsedSeconds = state.elapsed || 0;
       timerVal.textContent = formatTime(solvedElapsedSeconds);
       board.classList.add('solved');
@@ -1063,12 +1194,16 @@
       message.textContent = `Solved! Every line adds to ${currentPuzzle.constant}.`;
       message.className = 'message success';
     } else {
-      startTime = Date.now() - (state.elapsed || 0) * 1000;
-      timerVal.textContent = formatTime(state.elapsed || 0);
-      timerHandle = setInterval(() => {
-        if (solvedFlag) return;
-        timerVal.textContent = formatTime(Math.floor((Date.now() - startTime) / 1000));
-      }, 1000);
+      const hasProgress = (state.elapsed && state.elapsed > 0) ||
+        (state.values && Object.keys(state.values).length > 0);
+      if (hasProgress){
+        timerStarted = true;
+        startTime = Date.now() - (state.elapsed || 0) * 1000;
+        timerVal.textContent = formatTime(state.elapsed || 0);
+        beginTimerInterval();
+      } else {
+        resetTimerAwaitingFirstMove();
+      }
     }
   }
 
@@ -1179,7 +1314,12 @@
 
   let adminBuffer = '';
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape' && adminOverlay.classList.contains('open')){ closeAdminPanel(); return; }
+    if (e.key === 'Escape'){
+      if (instructionsOverlay.classList.contains('open')) closeInstructions();
+      if (adminOverlay.classList.contains('open')) closeAdminPanel();
+      if (saveOverlay.classList.contains('open')) closeSaveOverlay();
+      return;
+    }
     if (e.key.length === 1 && /[a-zA-Z]/.test(e.key)){
       adminBuffer = (adminBuffer + e.key.toLowerCase()).slice(-5);
       if (adminBuffer === 'admin'){
@@ -1193,6 +1333,9 @@
     if (!e.target.classList.contains('cell-input')) return;
     e.target.value = e.target.value.replace(/[^0-9]/g, '').slice(0, 3);
     e.target.classList.remove('correct', 'incorrect', 'hinted');
+    if (!timerStarted && !solvedFlag && e.target.value.trim() !== ''){
+      startTimer();
+    }
     updateSums();
   });
 
@@ -1210,6 +1353,7 @@
   hintBtn.addEventListener('click', useHint);
 
   newPuzzle();
+  openInstructions();
 })();
 </script>
 
