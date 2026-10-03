@@ -524,6 +524,36 @@
   }
   .tag-mint{ background:var(--mint); color:#1c3319; }
   .tag-coral{ background:var(--coral); color:#3a1410; }
+    .site-footer{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:12px;
+    margin-top:8px;
+    font-size:0.8rem;
+    color:var(--chalk-dim);
+  }
+  .site-footer a.link{
+    color:var(--yellow);
+    text-decoration:none;
+  }
+  .site-footer a.link:hover{ text-decoration:underline; }
+  .explore-btn{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    font-family:var(--font-display);
+    font-size:1.05rem;
+    text-decoration:none;
+    background:var(--yellow);
+    color:#2b2107;
+    border:2px solid #c7a24e;
+    border-radius:999px;
+    padding:8px 18px;
+    transition:transform 0.12s ease, filter 0.12s ease;
+  }
+  .explore-btn:hover{ filter:brightness(1.08); transform:translateY(-2px); }
+  .explore-btn:focus-visible{ outline:2px solid var(--yellow); outline-offset:3px; }
 </style>
 </head>
 <body>
@@ -589,6 +619,10 @@
 
   <footer class="footnote">Every number in a puzzle is used exactly once · rows, columns and diagonals always share the magic constant</footer>
 </div>
+    <footer class="site-footer">
+    <div>Made by <b>Lav1n</b> | <a class="link" href="https://youtube.com/@Lav1nRules" target="_blank" rel="noopener noreferrer">YouTube</a></div>
+    <a class="explore-btn" href="https://lavin0503.github.io/" target="_blank" rel="noopener noreferrer">Explore Creations</a>
+  </footer>
 
 <div class="admin-overlay" id="instructionsOverlay">
   <div class="admin-panel instructions-panel" role="dialog" aria-modal="true" aria-labelledby="instructionsTitle">
